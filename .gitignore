@@ -1,0 +1,17 @@
+# Build outputs
+bin/
+obj/
+
+# IDE / editor
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Runtime settings (user-specific)
+settings.json

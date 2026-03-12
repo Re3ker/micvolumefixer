@@ -29,7 +29,6 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "autostart"; Description: "Start with Windows (minimized to tray)"; GroupDescription: "Other:"
 
 [Files]
 Source: "..\bin\Release\net10.0-windows\win-arm64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
@@ -37,10 +36,12 @@ Source: "..\bin\Release\net10.0-windows\win-arm64\publish\*"; DestDir: "{app}"; 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--tray"; Tasks: autostart
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueName: "MicVolumeFixer"; Flags: uninsdeletevalue
 
 [UninstallDelete]
 Type: files; Name: "{app}\settings.json"

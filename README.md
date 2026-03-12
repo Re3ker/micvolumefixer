@@ -51,7 +51,7 @@ Or launch the compiled `MicVolumeFixer.exe` directly.
 
 Settings are stored in `settings.json` next to the executable:
 
-- **TargetVolume** — desired mic level (0–100)
+- **TargetVolume** — desired mic level (0-100)
 - **MonitoringActive** — whether monitoring was running when the app last closed
 - **MinimizeToTray** — minimize to tray instead of closing
 - **SelectedDeviceId** — previously selected microphone
@@ -67,3 +67,7 @@ The "Start with Windows" option writes to the Windows Registry (`HKCU\...\Run`) 
 ## License
 
 [MIT](LICENSE)
+
+## Credits
+
+- Microphone icon by [Freepik](https://www.freepik.com/icon/microphone_2618189)

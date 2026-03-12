@@ -13,7 +13,7 @@ A Windows system tray application that monitors your microphone volume and autom
 
 ## Screenshot
 
-<!-- Add a screenshot here -->
+![MicVolumeFixer](screenshot.png)
 
 ## Requirements
 

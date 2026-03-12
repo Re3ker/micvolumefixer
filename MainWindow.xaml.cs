@@ -162,19 +162,7 @@ public partial class MainWindow : Window
     private void UpdateCurrentVolDisplay()
     {
         int vol = AudioManager.GetVolume(SelectedDeviceId());
-        if (vol < 0)
-        {
-            lblCurrentVol.Text = "– %";
-            pbCurrentVol.Width = 0;
-        }
-        else
-        {
-            lblCurrentVol.Text = $"{vol} %";
-            // The progress bar parent is the clipping Border
-            var parent = pbCurrentVol.Parent as FrameworkElement;
-            double maxWidth = parent?.ActualWidth ?? 304;
-            pbCurrentVol.Width = vol / 100.0 * maxWidth;
-        }
+        volumeKnob.CurrentVolume = vol < 0 ? -1 : vol;
     }
 
     // ── Settings (JSON file) ────────────────────────────────────────────
@@ -193,7 +181,7 @@ public partial class MainWindow : Window
         {
             var settings = new AppSettings
             {
-                TargetVolume = (int)sliderTarget.Value,
+                TargetVolume = volumeKnob.TargetVolume,
                 MonitoringActive = _monitoring,
                 MinimizeToTray = cbMinimizeToTray.IsChecked == true,
                 SelectedDeviceId = cboDevices.SelectedIndex >= 0 && cboDevices.SelectedIndex < _deviceIds.Count
@@ -217,8 +205,7 @@ public partial class MainWindow : Window
 
             // Target volume
             int v = Math.Clamp(settings.TargetVolume, 0, 100);
-            sliderTarget.Value = v;
-            lblTargetVal.Text = $"{v} %";
+            volumeKnob.TargetVolume = v;
 
             // Monitoring active
             if (settings.MonitoringActive)
@@ -258,10 +245,8 @@ public partial class MainWindow : Window
         if (!_isInitializing) SaveSettings();
     }
 
-    private void SliderTarget_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void VolumeKnob_TargetVolumeChanged(object? sender, EventArgs e)
     {
-        if (lblTargetVal == null) return; // designer/load guard
-        lblTargetVal.Text = $"{(int)sliderTarget.Value} %";
         if (!_isInitializing) SaveSettings();
     }
 
@@ -309,7 +294,7 @@ public partial class MainWindow : Window
     {
         string id = SelectedDeviceId();
         int current = AudioManager.GetVolume(id);
-        int target = (int)sliderTarget.Value;
+        int target = volumeKnob.TargetVolume;
 
         UpdateCurrentVolDisplay();
 

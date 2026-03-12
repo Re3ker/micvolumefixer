@@ -1,0 +1,58 @@
+<UserControl x:Class="MicVolumeFixer.VolumeKnob"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="200" Height="195" Cursor="Hand"
+             MouseDown="OnMouseDown"
+             MouseMove="OnMouseMove"
+             MouseUp="OnMouseUp"
+             MouseWheel="OnMouseWheel">
+
+    <Grid>
+        <!-- Arc drawing canvas -->
+        <Canvas x:Name="canvas" Width="200" Height="200">
+            <!-- Background track arc (drawn in code) -->
+            <Path x:Name="trackPath" StrokeThickness="10" StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round">
+                <Path.Stroke>
+                    <SolidColorBrush Color="#2A2A3C"/>
+                </Path.Stroke>
+            </Path>
+
+            <!-- Current volume arc (drawn in code) -->
+            <Path x:Name="volumePath" StrokeThickness="10" StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round">
+                <Path.Stroke>
+                    <LinearGradientBrush x:Name="volumeBrush">
+                        <GradientStop Color="#48C774" Offset="0"/>
+                        <GradientStop Color="#63B3ED" Offset="0.5"/>
+                        <GradientStop Color="#805AD5" Offset="1"/>
+                    </LinearGradientBrush>
+                </Path.Stroke>
+            </Path>
+
+            <!-- Target indicator dot -->
+            <Ellipse x:Name="targetDot" Width="16" Height="16">
+                <Ellipse.Fill>
+                    <SolidColorBrush Color="#48C774"/>
+                </Ellipse.Fill>
+                <Ellipse.Effect>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="0"
+                                      Color="#48C774" Opacity="0.6"/>
+                </Ellipse.Effect>
+            </Ellipse>
+        </Canvas>
+
+        <!-- Center text -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Margin="0,-10,0,0">
+            <TextBlock x:Name="lblTarget" Text="90 %"
+                       FontSize="32" FontWeight="Bold"
+                       Foreground="#48C774"
+                       HorizontalAlignment="Center"/>
+            <TextBlock x:Name="lblCurrent" Text="Current: –"
+                       FontSize="12" Foreground="#63B3ED"
+                       HorizontalAlignment="Center"
+                       Margin="0,2,0,0"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -16,11 +16,18 @@ public partial class VolumeKnob : UserControl
     private const double CenterY = 100;
 
     private bool _isDragging;
+    private double _displayedVolume;  // smoothly animated value
+    private bool _animating;
 
     public VolumeKnob()
     {
         InitializeComponent();
-        Loaded += (_, _) => Redraw();
+        Loaded += (_, _) =>
+        {
+            _displayedVolume = CurrentVolume;
+            Redraw();
+        };
+        Unloaded += (_, _) => StopAnimation();
     }
 
     // ── Dependency Properties ───────────────────────────────────────────
@@ -47,7 +54,51 @@ public partial class VolumeKnob : UserControl
 
     private static void OnVolumeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        ((VolumeKnob)d).Redraw();
+        var knob = (VolumeKnob)d;
+        if (e.Property == CurrentVolumeProperty)
+            knob.StartAnimation();
+        else
+            knob.Redraw();
+    }
+
+    // ── Animation ───────────────────────────────────────────────────────
+
+    private void StartAnimation()
+    {
+        if (!IsLoaded) return;
+        if (!_animating)
+        {
+            _animating = true;
+            CompositionTarget.Rendering += OnRendering;
+        }
+    }
+
+    private void StopAnimation()
+    {
+        if (_animating)
+        {
+            _animating = false;
+            CompositionTarget.Rendering -= OnRendering;
+        }
+    }
+
+    private void OnRendering(object? sender, EventArgs e)
+    {
+        double target = CurrentVolume < 0 ? 0 : CurrentVolume;
+        double diff = target - _displayedVolume;
+
+        if (Math.Abs(diff) < 0.5)
+        {
+            _displayedVolume = target;
+            StopAnimation();
+        }
+        else
+        {
+            // Ease towards target (~12% per frame at 60fps ≈ smooth 150ms transition)
+            _displayedVolume += diff * 0.12;
+        }
+
+        RedrawArc();
     }
 
     // ── Event ───────────────────────────────────────────────────────────
@@ -63,13 +114,32 @@ public partial class VolumeKnob : UserControl
         // Background track: full 270° arc
         trackPath.Data = CreateArcGeometry(0, 100);
 
-        // Current volume arc
-        if (CurrentVolume > 0)
+        // Draw current volume arc using displayed (animated) value
+        RedrawArc();
+
+        // Target indicator dot
+        var dotPos = PointOnCircle(AngleFromValue(TargetVolume), Radius);
+        Canvas.SetLeft(targetDot, dotPos.X - targetDot.Width / 2);
+        Canvas.SetTop(targetDot, dotPos.Y - targetDot.Height / 2);
+
+        // Labels
+        lblTarget.Text = $"{TargetVolume} %";
+        lblCurrent.Text = CurrentVolume >= 0
+            ? $"Current: {CurrentVolume}%"
+            : "Current: –";
+    }
+
+    private void RedrawArc()
+    {
+        if (!IsLoaded) return;
+
+        int displayVal = (int)Math.Round(Math.Clamp(_displayedVolume, 0, 100));
+
+        if (displayVal > 0)
         {
-            volumePath.Data = CreateArcGeometry(0, CurrentVolume);
+            volumePath.Data = CreateArcGeometry(0, displayVal);
             volumePath.Visibility = Visibility.Visible;
 
-            // Update gradient brush direction to follow the arc's bounding box
             var bounds = volumePath.Data.Bounds;
             if (bounds.Width > 0)
             {
@@ -82,13 +152,7 @@ public partial class VolumeKnob : UserControl
             volumePath.Visibility = Visibility.Collapsed;
         }
 
-        // Target indicator dot
-        var dotPos = PointOnCircle(AngleFromValue(TargetVolume), Radius);
-        Canvas.SetLeft(targetDot, dotPos.X - targetDot.Width / 2);
-        Canvas.SetTop(targetDot, dotPos.Y - targetDot.Height / 2);
-
-        // Labels
-        lblTarget.Text = $"{TargetVolume} %";
+        // Update current label to show animated value
         lblCurrent.Text = CurrentVolume >= 0
             ? $"Current: {CurrentVolume}%"
             : "Current: –";

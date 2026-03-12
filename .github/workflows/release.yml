@@ -35,9 +35,9 @@ jobs:
           Compress-Archive -Path "$publishDir/*" -DestinationPath $zipName
 
       - name: Build installer
-        uses: Codeflow-Inc/inno-setup-action@v1
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
-          filepath: installer/MicVolumeFixer-${{ matrix.runtime }}.iss
+          path: installer/MicVolumeFixer-${{ matrix.runtime }}.iss
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

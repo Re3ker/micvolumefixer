@@ -9,6 +9,12 @@
     <ApplicationIcon>microphone.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
     <PackageReference Include="NAudio" Version="2.2.1" />

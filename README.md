@@ -15,16 +15,46 @@ A Windows system tray application that monitors your microphone volume and autom
 
 ![MicVolumeFixer](screenshot.png)
 
+## Download
+
+Grab the latest release from the [GitHub Releases](../../releases/latest) page:
+
+| Asset | Description |
+|-------|-------------|
+| `MicVolumeFixer-*-win-x64.zip` | Portable ZIP for 64-bit Intel/AMD — just extract and run |
+| `MicVolumeFixer-*-win-arm64.zip` | Portable ZIP for Windows on ARM (e.g. Surface Pro X, Snapdragon laptops) |
+| `MicVolumeFixer-*-Setup-x64.exe` | Installer for 64-bit Intel/AMD |
+| `MicVolumeFixer-*-Setup-arm64.exe` | Installer for Windows on ARM |
+
+All downloads are **self-contained** — no .NET installation required.
+
+> **Note:** Since the app is not code-signed, Windows SmartScreen may show a warning on first launch. Click **More info → Run anyway** to proceed. This is normal for open-source software without a paid certificate.
+
 ## Requirements
 
-- Windows 10 or later
-- [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (or SDK to build from source)
+### For users (pre-built release)
 
-## Build
+- Windows 10 or later (x64 or ARM64)
+- No additional dependencies — the self-contained build includes the .NET runtime
+
+### For developers (build from source)
+
+- Windows 10 or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+
+## Build from source
 
 ```bash
 dotnet build
 ```
+
+### Publish a self-contained single-file executable
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+```
+
+Replace `win-x64` with `win-arm64` for ARM builds. Output is in `bin/Release/net10.0-windows/win-x64/publish/`.
 
 ## Run
 

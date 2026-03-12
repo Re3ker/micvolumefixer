@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -80,6 +81,24 @@ public partial class MainWindow : Window
         SaveSettings();
         _checkTimer.Stop();
         TrayIcon.Dispose();
+    }
+
+    // ── Custom Title Bar ────────────────────────────────────────────────
+
+    private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+            DragMove();
+    }
+
+    private void MinimizeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void CloseBtn_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 
     // ── Tray Events ─────────────────────────────────────────────────────
@@ -319,14 +338,14 @@ public partial class MainWindow : Window
         if (active)
         {
             btnToggle.Content = "■  Stop Monitoring";
-            btnToggle.Background = new SolidColorBrush(Color.FromRgb(38, 110, 64));
+            btnToggle.Background = new SolidColorBrush(Color.FromRgb(26, 61, 38));
             btnToggle.Foreground = new SolidColorBrush(Color.FromRgb(72, 199, 116));
         }
         else
         {
             btnToggle.Content = "▶  Start Monitoring";
-            btnToggle.Background = new SolidColorBrush(Color.FromRgb(48, 48, 66));
-            btnToggle.Foreground = new SolidColorBrush(Color.FromRgb(240, 240, 250));
+            btnToggle.Background = new SolidColorBrush(Color.FromRgb(30, 30, 46));
+            btnToggle.Foreground = new SolidColorBrush(Color.FromRgb(232, 232, 248));
         }
     }
 }

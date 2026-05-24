@@ -4,7 +4,7 @@
         xmlns:tb="clr-namespace:H.NotifyIcon;assembly=H.NotifyIcon.Wpf"
         xmlns:local="clr-namespace:MicVolumeFixer"
         Title="MicVolumeFixer"
-        Width="480" Height="570"
+        Width="480" Height="660"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -348,7 +348,7 @@
                 </Border>
 
                 <!-- Main Content -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Disabled">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="24,14,24,18">
                         <!-- MICROPHONE DEVICE -->
                         <TextBlock Text="MICROPHONE DEVICE"
@@ -409,6 +409,17 @@
                                        VerticalAlignment="Center"/>
                         </Border>
 
+                        <!-- Warning Banner (hidden until threshold triggered) -->
+                        <Border x:Name="warningBanner" Visibility="Collapsed"
+                                Background="#2E1800" CornerRadius="6"
+                                BorderBrush="#E68000" BorderThickness="1"
+                                Margin="0,6,0,0" Padding="10,7">
+                            <TextBlock x:Name="lblWarning"
+                                       Foreground="#FFB347" FontSize="11.3"
+                                       Text="&#x26A0;&#x2002;Repeated volume changes detected!"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+
                         <!-- SETTINGS -->
                         <TextBlock Text="SETTINGS"
                                    FontSize="10" FontWeight="SemiBold"
@@ -429,7 +440,147 @@
                                           Style="{StaticResource DarkCheckBox}"
                                           Checked="CbAutostart_Changed"
                                           Unchecked="CbAutostart_Changed"/>
+
+                                <!-- Warning threshold row -->
+                                <Border Background="#22222E" CornerRadius="4"
+                                        Margin="0,12,0,0" Padding="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="&#x26A0; Warn after "
+                                                   Foreground="#8888A0" FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBox x:Name="txtWarnCount" Width="32" Height="22"
+                                                 Background="#1E1E2E" Foreground="#E8E8F8"
+                                                 BorderBrush="#3A3A50" BorderThickness="1"
+                                                 Padding="4,1" MaxLength="3" Text="3"
+                                                 TextAlignment="Center" VerticalContentAlignment="Center"
+                                                 TextChanged="TxtWarnCount_TextChanged"/>
+                                        <TextBlock Text=" changes in "
+                                                   Foreground="#8888A0" FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBox x:Name="txtWarnSeconds" Width="36" Height="22"
+                                                 Background="#1E1E2E" Foreground="#E8E8F8"
+                                                 BorderBrush="#3A3A50" BorderThickness="1"
+                                                 Padding="4,1" MaxLength="4" Text="10"
+                                                 TextAlignment="Center" VerticalContentAlignment="Center"
+                                                 TextChanged="TxtWarnSeconds_TextChanged"/>
+                                        <TextBlock Text=" s"
+                                                   Foreground="#8888A0" FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
+                        </Border>
+
+                        <!-- CHANGE LOG collapsible section -->
+                        <Border Cursor="Hand" Margin="0,14,0,0"
+                                Background="Transparent"
+                                MouseDown="LogHeader_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="logToggleArrow" Text="&#x25BA;"
+                                           Foreground="#6868A0" FontSize="10"
+                                           FontWeight="SemiBold" Margin="0,0,6,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="logHeaderText"
+                                           Text="CHANGE LOG  (0)"
+                                           FontSize="10" FontWeight="SemiBold"
+                                           Foreground="#6868A0"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="logPanel" Visibility="Collapsed"
+                                Background="#1A1A26" CornerRadius="8"
+                                BorderBrush="#2A2A3C" BorderThickness="1"
+                                Padding="12,10" Margin="0,4,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Header row: label + Clear button -->
+                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                    <TextBlock Text="Recent external changes"
+                                               Foreground="#6868A0" FontSize="10.67"
+                                               VerticalAlignment="Center"/>
+                                    <Button Content="Clear" Click="BtnClearLog_Click"
+                                            HorizontalAlignment="Right"
+                                            Padding="8,3" FontSize="10.67"
+                                            Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Foreground" Value="#8888A0"/>
+                                                <Setter Property="Background" Value="#1E1E2E"/>
+                                                <Setter Property="BorderBrush" Value="#2A2A3C"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="bd"
+                                                                    Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    CornerRadius="4"
+                                                                    Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#2E2E42"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Log list -->
+                                <ListBox x:Name="lstLog" Grid.Row="1" MaxHeight="160"
+                                         Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         VirtualizingPanel.IsVirtualizing="True">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="4,3"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border x:Name="bd" Background="Transparent"
+                                                                Padding="{TemplateBinding Padding}"
+                                                                CornerRadius="4">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#2A2A3C"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#22222F"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding FormattedTime}"
+                                                           Foreground="#6868A0" FontSize="10"/>
+                                                <TextBlock Text="{Binding ChangeText}"
+                                                           Foreground="#E8E8F8" FontSize="11.3"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>

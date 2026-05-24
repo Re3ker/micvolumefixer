@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NAudio.CoreAudioApi;
 
 namespace MicVolumeFixer;
@@ -68,5 +69,40 @@ public static class AudioManager
             return enumerator.GetDevice(deviceId);
         }
         catch { return null; }
+    }
+
+    /// <summary>
+    /// Returns the process names of all sessions currently active on the
+    /// given capture device. Used as a "suspects" hint when an external
+    /// volume change is detected.
+    /// </summary>
+    public static List<string> GetActiveCaptureSessionProcessNames(string deviceId)
+    {
+        var result = new List<string>();
+        try
+        {
+            using var device = GetDeviceById(deviceId);
+            if (device == null) return result;
+
+            var manager = device.AudioSessionManager;
+            manager.RefreshSessions();
+            var sessions = manager.Sessions;
+
+            for (int i = 0; i < sessions.Count; i++)
+            {
+                using var session = sessions[i];
+                try
+                {
+                    uint pid = session.GetProcessID;
+                    if (pid == 0) continue; // system / idle process
+                    string name = Process.GetProcessById((int)pid).ProcessName;
+                    if (!string.IsNullOrEmpty(name) && !result.Contains(name))
+                        result.Add(name);
+                }
+                catch { }
+            }
+        }
+        catch { }
+        return result;
     }
 }

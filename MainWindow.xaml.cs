@@ -9,6 +9,12 @@ using Microsoft.Win32;
 
 namespace MicVolumeFixer;
 
+public record VolumeChangeEntry(DateTime Time, int OldVolume, int NewVolume, string Suspects)
+{
+    public string FormattedTime => Time.ToString("HH:mm:ss");
+    public string ChangeText => $"{OldVolume}% \u2192 {NewVolume}%  |  {Suspects}";
+}
+
 public partial class MainWindow : Window
 {
     private readonly DispatcherTimer _checkTimer;
@@ -17,9 +23,20 @@ public partial class MainWindow : Window
     private bool _reallyClose;
     private bool _startMinimized;
     private bool _monitoring;
+    private bool _logExpanded;
+
+    // ── Volume change log ───────────────────────────────────────────────
+    private readonly VolumeWatcher _watcher = new();
+    private readonly List<VolumeChangeEntry> _changeLog = [];
+    private readonly Queue<DateTime> _recentChangeTimes = new();
+    private int _warnThresholdCount = 3;
+    private int _warnWindowSeconds = 10;
+    private readonly DispatcherTimer _warningResetTimer;
 
     private static readonly string SettingsPath = Path.Combine(
         AppContext.BaseDirectory, "settings.json");
+    private static readonly string LogPath = Path.Combine(
+        AppContext.BaseDirectory, "mic-changes.log");
 
     private const string RegRun =
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
@@ -34,6 +51,15 @@ public partial class MainWindow : Window
 
         _checkTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _checkTimer.Tick += Timer_Tick;
+
+        _warningResetTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _warningResetTimer.Tick += (s, e) =>
+        {
+            _warningResetTimer.Stop();
+            warningBanner.Visibility = Visibility.Collapsed;
+        };
+
+        _watcher.ExternalChangeDetected += OnExternalVolumeChange;
     }
 
     // ── Window Events ───────────────────────────────────────────────────
@@ -80,6 +106,7 @@ public partial class MainWindow : Window
 
         SaveSettings();
         _checkTimer.Stop();
+        _watcher.Dispose();
         TrayIcon.Dispose();
     }
 
@@ -173,6 +200,8 @@ public partial class MainWindow : Window
         public bool MonitoringActive { get; set; }
         public bool MinimizeToTray { get; set; }
         public string SelectedDeviceId { get; set; } = "";
+        public int WarnChangeCount { get; set; } = 3;
+        public int WarnWindowSeconds { get; set; } = 10;
     }
 
     private void SaveSettings()
@@ -186,7 +215,9 @@ public partial class MainWindow : Window
                 MinimizeToTray = cbMinimizeToTray.IsChecked == true,
                 SelectedDeviceId = cboDevices.SelectedIndex >= 0 && cboDevices.SelectedIndex < _deviceIds.Count
                     ? _deviceIds[cboDevices.SelectedIndex]
-                    : ""
+                    : "",
+                WarnChangeCount = _warnThresholdCount,
+                WarnWindowSeconds = _warnWindowSeconds
             };
             string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(SettingsPath, json);
@@ -213,6 +244,7 @@ public partial class MainWindow : Window
                 _checkTimer.Start();
                 _monitoring = true;
                 SetToggleStyle(true);
+                // Watcher started after device is selected below
             }
 
             // Minimize to tray
@@ -233,6 +265,16 @@ public partial class MainWindow : Window
                 if (idx >= 0)
                     cboDevices.SelectedIndex = idx;
             }
+
+            // Warning thresholds
+            if (settings.WarnChangeCount > 0) _warnThresholdCount = settings.WarnChangeCount;
+            if (settings.WarnWindowSeconds > 0) _warnWindowSeconds = settings.WarnWindowSeconds;
+            txtWarnCount.Text = _warnThresholdCount.ToString();
+            txtWarnSeconds.Text = _warnWindowSeconds.ToString();
+
+            // Start watcher now that device is resolved
+            if (_monitoring)
+                _watcher.StartWatching(SelectedDeviceId(), volumeKnob.TargetVolume);
         }
         catch { }
     }
@@ -242,11 +284,14 @@ public partial class MainWindow : Window
     private void CboDevices_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         UpdateCurrentVolDisplay();
+        if (_monitoring)
+            _watcher.StartWatching(SelectedDeviceId(), volumeKnob.TargetVolume);
         if (!_isInitializing) SaveSettings();
     }
 
     private void VolumeKnob_TargetVolumeChanged(object? sender, EventArgs e)
     {
+        _watcher.UpdateTarget(volumeKnob.TargetVolume);
         if (!_isInitializing) SaveSettings();
     }
 
@@ -254,9 +299,16 @@ public partial class MainWindow : Window
     {
         _monitoring = !_monitoring;
         if (_monitoring)
+        {
             _checkTimer.Start();
+            _watcher.StartWatching(SelectedDeviceId(), volumeKnob.TargetVolume);
+        }
         else
+        {
             _checkTimer.Stop();
+            _watcher.StopWatching();
+            _recentChangeTimes.Clear();
+        }
         SetToggleStyle(_monitoring);
         lblStatus.Text = _monitoring ? "▶  Monitoring active" : "■  Monitoring stopped";
         if (!_isInitializing) SaveSettings();
@@ -313,6 +365,97 @@ public partial class MainWindow : Window
         else
         {
             lblStatus.Text = $"✔  Volume OK  ({current} %)";
+        }
+    }
+
+    // ── Volume Change Log & Warning ────────────────────────────────────
+
+    private void OnExternalVolumeChange(object? sender, ExternalVolumeChangedArgs args)
+    {
+        if (!_monitoring) return;
+
+        var suspects = AudioManager.GetActiveCaptureSessionProcessNames(SelectedDeviceId());
+        string suspectsStr = suspects.Count > 0 ? string.Join(", ", suspects) : "unknown";
+
+        var entry = new VolumeChangeEntry(args.Timestamp, args.OldVolume, args.NewVolume, suspectsStr);
+
+        _changeLog.Insert(0, entry);
+        if (_changeLog.Count > 200) _changeLog.RemoveAt(200);
+
+        UpdateLogPanel();
+        AppendToLogFile(entry);
+
+        // Warning threshold: count changes within the rolling window
+        var now = DateTime.Now;
+        while (_recentChangeTimes.Count > 0 &&
+               (now - _recentChangeTimes.Peek()).TotalSeconds > _warnWindowSeconds)
+            _recentChangeTimes.Dequeue();
+        _recentChangeTimes.Enqueue(now);
+
+        if (_recentChangeTimes.Count >= _warnThresholdCount)
+            TriggerWarning(suspectsStr);
+    }
+
+    private void TriggerWarning(string suspects)
+    {
+        string msg = $"Mic volume changed {_recentChangeTimes.Count}\u00d7 in {_warnWindowSeconds}s.  Suspects: {suspects}";
+        TrayIcon.ShowNotification("MicVolumeFixer \u2013 Warning", msg,
+            H.NotifyIcon.Core.NotificationIcon.Warning);
+
+        warningBanner.Visibility = Visibility.Visible;
+        lblWarning.Text = "\u26a0\u2002" + msg;
+
+        _warningResetTimer.Stop();
+        _warningResetTimer.Start();
+    }
+
+    private void UpdateLogPanel()
+    {
+        lstLog.ItemsSource = null;
+        lstLog.ItemsSource = _changeLog;
+        logHeaderText.Text = $"CHANGE LOG  ({_changeLog.Count})";
+    }
+
+    private static void AppendToLogFile(VolumeChangeEntry entry)
+    {
+        try
+        {
+            string line = $"[{entry.Time:yyyy-MM-dd HH:mm:ss}] {entry.OldVolume}%\u2192{entry.NewVolume}% | Suspects: {entry.Suspects}{Environment.NewLine}";
+            File.AppendAllText(LogPath, line);
+        }
+        catch { }
+    }
+
+    private void LogHeader_Click(object sender, MouseButtonEventArgs e)
+    {
+        _logExpanded = !_logExpanded;
+        logPanel.Visibility = _logExpanded ? Visibility.Visible : Visibility.Collapsed;
+        logToggleArrow.Text = _logExpanded ? "\u25bc" : "\u25ba";
+    }
+
+    private void BtnClearLog_Click(object sender, RoutedEventArgs e)
+    {
+        _changeLog.Clear();
+        UpdateLogPanel();
+    }
+
+    private void TxtWarnCount_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (int.TryParse(txtWarnCount.Text, out int val) && val > 0)
+        {
+            _warnThresholdCount = val;
+            SaveSettings();
+        }
+    }
+
+    private void TxtWarnSeconds_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (int.TryParse(txtWarnSeconds.Text, out int val) && val > 0)
+        {
+            _warnWindowSeconds = val;
+            SaveSettings();
         }
     }
 
